@@ -1,3 +1,4 @@
+package com.example.lab2;
 
 import java.io.File;
 import java.io.FileNotFoundException;
