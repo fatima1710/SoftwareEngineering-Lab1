@@ -12,6 +12,6 @@
       <TextField fx:id="emailField" layoutX="226.0" layoutY="128.0" promptText="Email" />
       <PasswordField fx:id="passwordField" layoutX="226.0" layoutY="188.0" promptText="Password" />
       <Button layoutX="274.0" layoutY="224.0" mnemonicParsing="false" onAction="#handleLogin" text="Login" />
-      <Label fx:id="errorLabel" layoutX="286.0" layoutY="258.0" />
+      <Label fx:id="errorLabel" alignment="CENTER" layoutX="150.0" layoutY="258.0" prefHeight="17.0" prefWidth="300.0" textFill="RED" />
    </children>
 </AnchorPane>

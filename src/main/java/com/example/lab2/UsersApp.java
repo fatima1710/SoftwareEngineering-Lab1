@@ -13,6 +13,28 @@ public class UsersApp {
 
     public static void main(String[] args) {
 
+        // load valid users from the input file
+        ArrayList<User> users = loadUsers();
+
+        Collections.sort(users, (u1, u2) ->
+                u1.getName().compareTo(u2.getName()));
+
+        try (PrintWriter writer =
+                     new PrintWriter(new FileWriter("out.txt"))) {
+
+            for (User user : users) {
+                writer.println(
+                        user.getName() + " " + user.getPassword()
+                );
+            }
+
+        } catch (IOException e) {
+            System.out.println("Error writing file");
+        }
+    }// end of main
+
+    // loads valid users from the file and returns them as an ArrayList
+    public static ArrayList<User> loadUsers() {
         ArrayList<User> users = new ArrayList<>();
 
         try {
@@ -41,23 +63,8 @@ public class UsersApp {
 
         } catch (FileNotFoundException e) {
             System.out.println("File not found");
-            return;
+            return users;
         }
-
-        Collections.sort(users, (u1, u2) ->
-                u1.getName().compareTo(u2.getName()));
-
-        try (PrintWriter writer =
-                     new PrintWriter(new FileWriter("out.txt"))) {
-
-            for (User user : users) {
-                writer.println(
-                        user.getName() + " " + user.getPassword()
-                );
-            }
-
-        } catch (IOException e) {
-            System.out.println("Error writing file");
-        }
+        return users;
     }
 }
