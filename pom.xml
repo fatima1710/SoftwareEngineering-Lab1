@@ -36,6 +36,7 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>com.example.lab2.MainApp</mainClass>
+                    <commandlineArgs>3 30</commandlineArgs>
                 </configuration>
             </plugin>
         </plugins>
