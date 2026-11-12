@@ -1,18 +1,20 @@
+
 package com.example.lab2;
 
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.TextField;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.Label;
-import java.util.ArrayList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
 import javafx.stage.Stage;
+
 import java.io.IOException;
 
-// login controller controls the login process, validates user credentials,
-// and opens the welcome screen after a successful authentication
 public class LoginController {
 
     @FXML
@@ -24,38 +26,123 @@ public class LoginController {
     @FXML
     private Label errorLabel;
 
+    private Thread countdownThread;
+    private boolean closed = false;
+
     @FXML
-    private void handleLogin() {
+    private void handleLogin(ActionEvent event) {
 
         String email = emailField.getText();
         String password = passwordField.getText();
 
-        // load valid users from the input file
-        ArrayList<User> users = UsersApp.loadUsers();
+        Button loginButton = (Button) event.getSource();
 
-        boolean loginSuccessful = false;
+        setLoginDisabled(loginButton, true);
+        errorLabel.setText("");
 
-        for (User user : users) {
-            if (email.equals(user.getName()) &&
-                    password.equals(user.getPassword())) {
+        // Start login processing in a background thread.
+        LoginTask task = new LoginTask(
+                email,
+                password,
+                MainApp.getTracker(),
+                MainApp.getQueue(),
+                result -> handleResult(result, loginButton)
+        );
 
-                loginSuccessful = true;
-                break;
-            }
+        Thread loginThread = new Thread(task, "LoginTask");
+        loginThread.setDaemon(true);
+        loginThread.start();
+    }
+
+    private void handleResult(
+            LoginResult result,
+            Button loginButton
+    ) {
+        if (closed) {
+            return;
         }
 
-        if (loginSuccessful) {
-            if (openWelcomeScreen()) {
-                // close the login window only if "Welcome" opened successfully
-                Stage loginStage = (Stage) emailField.getScene().getWindow();
-                loginStage.close();
-            }
-        } else {
-            errorLabel.setText("user or password do not match");
+        switch (result.status()) {
+
+            case SUCCESS:
+                if (openWelcomeScreen()) {
+                    Stage loginStage =
+                            (Stage) emailField.getScene().getWindow();
+
+                    loginStage.close();
+                } else {
+                    errorLabel.setText("Could not open Welcome screen");
+                    setLoginDisabled(loginButton, false);
+                }
+                break;
+
+            case ERROR:
+                if (result.remainingAttempts() < 0) {
+                    errorLabel.setText("Invalid credentials");
+                } else {
+                    errorLabel.setText(
+                            "Invalid credentials. Attempts left: "
+                                    + result.remainingAttempts()
+                    );
+                }
+
+                setLoginDisabled(loginButton, false);
+                break;
+
+            case BLOCKED:
+                startCountdown(
+                        result.remainingBlockMillis(),
+                        loginButton
+                );
+                break;
         }
     }
 
-    // opens the Welcome screen after a successful login
+    private void startCountdown(
+            long remainingMillis,
+            Button loginButton
+    ) {
+        if (countdownThread != null) {
+            countdownThread.interrupt();
+        }
+
+        CountdownTask countdownTask = new CountdownTask(
+                remainingMillis,
+
+                seconds -> {
+                    if (!closed) {
+                        errorLabel.setText(
+                                "Account blocked. "
+                                        + seconds
+                                        + " seconds remaining"
+                        );
+                    }
+                },
+
+                () -> {
+                    if (!closed) {
+                        errorLabel.setText("");
+                        setLoginDisabled(loginButton, false);
+                    }
+                }
+        );
+
+        countdownThread =
+                new Thread(countdownTask, "CountdownTask");
+
+        countdownThread.setDaemon(true);
+        countdownThread.start();
+    }
+
+    private void setLoginDisabled(
+            Button loginButton,
+            boolean disabled
+    ) {
+        loginButton.setDisable(disabled);
+        emailField.setDisable(disabled);
+        passwordField.setDisable(disabled);
+    }
+
     private boolean openWelcomeScreen() {
         try {
             Parent root = FXMLLoader.load(
@@ -73,5 +160,21 @@ public class LoginController {
             e.printStackTrace();
             return false;
         }
+    }
+
+    @FXML
+    private void initialize() {
+        Platform.runLater(() -> {
+            Stage stage =
+                    (Stage) emailField.getScene().getWindow();
+
+            stage.setOnHidden(event -> {
+                closed = true;
+
+                if (countdownThread != null) {
+                    countdownThread.interrupt();
+                }
+            });
+        });
     }
 }
