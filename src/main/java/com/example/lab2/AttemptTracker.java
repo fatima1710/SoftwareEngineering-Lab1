@@ -7,6 +7,8 @@ public class AttemptTracker {
 
     private final ConcurrentHashMap<String, UserState> states =
             new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Object> loginLocks =
+            new ConcurrentHashMap<>();
 
     private final int n;
     private final int t;
@@ -25,6 +27,11 @@ public class AttemptTracker {
     public UserState getState(String email) {
         return states.computeIfAbsent(
                 email, key -> new UserState()
+        );
+    }
+    public Object getLoginLock(String email) {
+        return loginLocks.computeIfAbsent(
+                email, key -> new Object()
         );
     }
 

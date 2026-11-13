@@ -87,5 +87,49 @@ public class ConcurrencyTest {
     }
     public static void main(String[] args) throws InterruptedException {
         runTest();
+        testLoginLock();
     }
+
+    public static void testLoginLock() throws InterruptedException {
+
+        AttemptTracker tracker = new AttemptTracker(1, 30);
+        String email = "test@example.com";
+
+        java.util.concurrent.CountDownLatch firstStarted =
+                new java.util.concurrent.CountDownLatch(1);
+
+        Thread thread1 = new Thread(() -> {
+            synchronized (tracker.getLoginLock(email)) {
+                firstStarted.countDown();
+
+                tracker.recordFailure(email);
+                System.out.println("Thread 1: wrong password");
+            }
+        });
+
+        Thread thread2 = new Thread(() -> {
+            synchronized (tracker.getLoginLock(email)) {
+                boolean blocked =
+                        tracker.getRemainingBlockMillis(email) > 0;
+
+                System.out.println(
+                        "Thread 2: blocked = " + blocked
+                );
+
+                if (blocked) {
+                    System.out.println("Login denied");
+                } else {
+                    System.out.println("Login may continue");
+                }
+            }
+        });
+
+        thread1.start();
+        firstStarted.await();
+        thread2.start();
+
+        thread1.join();
+        thread2.join();
+    }
+
 }

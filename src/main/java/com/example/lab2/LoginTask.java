@@ -32,7 +32,7 @@ public class LoginTask implements Runnable {
     @Override
     public void run() {
         try {
-            // Read valid users on a background thread.
+            // Read users on the background thread.
             ArrayList<User> users = UsersApp.loadUsers();
 
             User matchingUser = null;
@@ -44,7 +44,7 @@ public class LoginTask implements Runnable {
                 }
             }
 
-            // Unknown emails are not tracked.
+            // Do not track unknown emails.
             if (matchingUser == null) {
                 sendResult(new LoginResult(
                         LoginResult.Status.ERROR, -1, 0
@@ -52,51 +52,56 @@ public class LoginTask implements Runnable {
                 return;
             }
 
-            // Check blocking in a separate Thread.
-            BlockCheckThread blockThread =
-                    new BlockCheckThread(tracker, email);
+            // Only one login process per email at a time.
+            synchronized (tracker.getLoginLock(email)) {
 
-            blockThread.start();
-            blockThread.join();
+                // Check blocking using Thread and join.
+                BlockCheckThread blockThread =
+                        new BlockCheckThread(tracker, email);
 
-            if (blockThread.isBlocked()) {
-                sendResult(new LoginResult(
-                        LoginResult.Status.BLOCKED,
-                        0,
-                        blockThread.getRemainingBlockMillis()
-                ));
-                return;
-            }
+                blockThread.start();
+                blockThread.join();
 
-            // Correct password.
-            if (password.equals(matchingUser.getPassword())) {
-                tracker.reset(email);
+                if (blockThread.isBlocked()) {
+                    sendResult(new LoginResult(
+                            LoginResult.Status.BLOCKED,
+                            0,
+                            blockThread.getRemainingBlockMillis()
+                    ));
+                    return;
+                }
 
-                sendResult(new LoginResult(
-                        LoginResult.Status.SUCCESS, 0, 0
-                ));
-                return;
-            }
+                // Correct password.
+                if (password.equals(matchingUser.getPassword())) {
+                    tracker.reset(email);
 
-            // Wrong password for an existing email.
-            FailedAttempt attempt = new FailedAttempt(email);
-            queue.put(attempt);
+                    sendResult(new LoginResult(
+                            LoginResult.Status.SUCCESS, 0, 0
+                    ));
+                    return;
+                }
 
-            AttemptTracker.FailureStatus status =
-                    attempt.waitForResult();
+                // Wrong password for a known email.
+                FailedAttempt attempt = new FailedAttempt(email);
 
-            if (status.remainingBlockMillis() > 0) {
-                sendResult(new LoginResult(
-                        LoginResult.Status.BLOCKED,
-                        0,
-                        status.remainingBlockMillis()
-                ));
-            } else {
-                sendResult(new LoginResult(
-                        LoginResult.Status.ERROR,
-                        status.remainingAttempts(),
-                        0
-                ));
+                queue.put(attempt);
+
+                AttemptTracker.FailureStatus status =
+                        attempt.waitForResult();
+
+                if (status.remainingBlockMillis() > 0) {
+                    sendResult(new LoginResult(
+                            LoginResult.Status.BLOCKED,
+                            0,
+                            status.remainingBlockMillis()
+                    ));
+                } else {
+                    sendResult(new LoginResult(
+                            LoginResult.Status.ERROR,
+                            status.remainingAttempts(),
+                            0
+                    ));
+                }
             }
 
         } catch (InterruptedException e) {
