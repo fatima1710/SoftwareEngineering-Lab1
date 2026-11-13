@@ -177,4 +177,35 @@ public class LoginController {
             });
         });
     }
+    @FXML
+    private void handleConcurrencyTest() {
+
+        errorLabel.setText("Running concurrency test...");
+
+        Thread testThread = new Thread(() -> {
+            try {
+                String result = ConcurrencyTest.runTest();
+
+                Platform.runLater(() -> {
+                    if (!closed) {
+                        errorLabel.setText(
+                                result.replace("\n", " | ")
+                        );
+                    }
+                });
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+
+                Platform.runLater(() -> {
+                    if (!closed) {
+                        errorLabel.setText("Test interrupted");
+                    }
+                });
+            }
+        }, "ConcurrencyTest");
+
+        testThread.setDaemon(true);
+        testThread.start();
+    }
 }
