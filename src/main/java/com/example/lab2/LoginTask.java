@@ -104,8 +104,16 @@ public class LoginTask implements Runnable {
                 }
             }
 
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+
+        } catch (IllegalStateException e) {
+            System.err.println("Login error: " + e.getMessage());
+
+            sendResult(new LoginResult(
+                    LoginResult.Status.ERROR, -1, 0
+            ));
         }
     }
 

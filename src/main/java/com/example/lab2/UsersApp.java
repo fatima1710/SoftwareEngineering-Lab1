@@ -62,9 +62,11 @@ public class UsersApp {
             reader.close();
 
         } catch (FileNotFoundException e) {
-            System.out.println("File not found");
-            return users;
+            throw new IllegalStateException(
+                    "Cannot load users.txt", e
+            );
         }
+
         return users;
     }
 }
